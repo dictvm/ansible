@@ -53,7 +53,6 @@ options:
     required: false
     default: null
     choices: [string, boolean, select, multiselect, note, text, password, title]
-    aliases: []
   value:
     description:
       -  Value to set the configuration to
@@ -65,7 +64,13 @@ options:
       - Do not set 'seen' flag when pre-seeding
     required: false
     default: False
-    aliases: []
+  reconfigure:
+    required: false
+    default: False
+    description:
+      - If True runs dpkg-reconfigure to execute the packages post install scripts,
+        when settings are changed, this is more useful for packages that are already
+        installed.
 author: Brian Coca
 
 '''
@@ -82,6 +87,9 @@ debconf: name='oracle-java7-installer' question='shared/accepted-oracle-license-
 
 # Specifying package you can register/return the list of questions and current values
 debconf: name='tzdata'
+
+# Set myslq root password and make it effective
+debconf: name='tzdata' question= value= vtype=string  reconfigure=True
 '''
 
 import pipes
@@ -113,6 +121,13 @@ def set_selection(module, pkg, question, vtype, value, unseen):
 
     return module.run_command(' '.join(cmd), use_unsafe_shell=True)
 
+def reconfigure(module, pkg):
+
+    dpkg_re = module.get_bin_path('dpkg-reconfigure', True)
+    cmd = [ dpkg_re, '-f noninteractive', pkg ]
+
+    return module.run_command(' '.join(cmd), use_unsafe_shell=True)
+
 def main():
 
     module = AnsibleModule(
@@ -121,7 +136,8 @@ def main():
            question = dict(required=False, aliases=['setting', 'selection'], type='str'),
            vtype = dict(required=False, type='str', choices=['string', 'boolean', 'select',  'multiselect', 'note', 'text', 'password', 'title']),
            value= dict(required=False, type='str'),
-           unseen = dict(required=False, type='bool'),
+           unseen = dict(required=False, type='bool', default=False),
+           reconfigure = dict(required=False, type='bool', default=False),
         ),
         required_together = ( ['question','vtype', 'value'],),
         supports_check_mode=True,
@@ -133,6 +149,7 @@ def main():
     vtype     = module.params["vtype"]
     value    = module.params["value"]
     unseen   = module.params["unseen"]
+    reconfigure = module.params["reconfigure"]
 
     prev = get_selections(module, pkg)
     diff = ''
@@ -152,6 +169,12 @@ def main():
             rc, msg, e = set_selection(module, pkg, question, vtype, value, unseen)
             if rc:
                 module.fail_json(msg=e)
+
+            if reconfigure:
+                rc, msg2, e = reconfigure(module, pkg)
+                if rc:
+                    module.fail_json(msg2=e)
+                msg = msg + msg2
 
         curr = { question: value }
         if question in prev:
