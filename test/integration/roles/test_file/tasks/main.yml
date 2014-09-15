@@ -229,6 +229,12 @@
       - 'file17_result.failed == true'
       - 'file17_result.state == "directory"'
 
+- name: relative symlink
+  file: src=../{{output_dir|basename}}/baz.txt dest={{output_dir}}/relative state=link
+
+- name: relative symlink directory
+  file: src=../{{output_dir|basename}} dest={{output_dir}}/relative_dir state=link
+
 - name: test file creation with symbolic mode
   file: dest={{output_dir}}/test_symbolic state=touch mode=u=rwx,g=rwx,o=rwx
   register: result
