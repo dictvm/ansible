@@ -1150,38 +1150,46 @@ def boolean(value):
     else:
         return False
 
+def make_become_cmd(cmd, user, executable, system, flags, exe):
+    """
+    helper function for connection plugins to create privlege escalation commands
+    """
+    randbits = ''.join(chr(random.randint(ord('a'), ord('z'))) for x in xrange(32))
+    success_key = 'BECOME-SUCCESS-%s' % randbits
+
+    if system == 'sudo':
+        # Rather than detect if sudo wants a password this time, -k makes sudo always ask for
+        # a password if one is required. Passing a quoted compound command to sudo (or sudo -s)
+        # directly doesn't work, so we shellquote it with pipes.quote() and pass the quoted
+        # string to the user's shell.  We loop reading output until we see the randomly-generated
+        # sudo prompt set with the -p option.
+        prompt = '[sudo via ansible, key=%s] password: ' % randbits
+        becomecmd = '%s -k && %s %s -S -p "%s" -u %s' % ( exe, exe, flags, prompt, user)
+    elif system == 'su':
+        prompt = None
+        becomecmd = '%s %s %s -c' % ( exe, flags, user)
+    elif system == 'pbrun':
+        prompt = None
+        becomecmd = '%s -b -l %s -u %s' % ( exe, flags, user)
+
+    becomecmd += ' "%s -c %s' % (executable or '$SHELL', pipes.quote('echo %s; %s' % (success_key, cmd)) )
+
+    #TODO: first sh configurable too?
+    return ('/bin/sh -c ' + pipes.quote(becomecmd), prompt, success_key)
+
+
 def make_sudo_cmd(sudo_exe, sudo_user, executable, cmd):
     """
     helper function for connection plugins to create sudo commands
     """
-    # Rather than detect if sudo wants a password this time, -k makes
-    # sudo always ask for a password if one is required.
-    # Passing a quoted compound command to sudo (or sudo -s)
-    # directly doesn't work, so we shellquote it with pipes.quote()
-    # and pass the quoted string to the user's shell.  We loop reading
-    # output until we see the randomly-generated sudo prompt set with
-    # the -p option.
-    randbits = ''.join(chr(random.randint(ord('a'), ord('z'))) for x in xrange(32))
-    prompt = '[sudo via ansible, key=%s] password: ' % randbits
-    success_key = 'SUDO-SUCCESS-%s' % randbits
-    sudocmd = '%s -k && %s %s -S -p "%s" -u %s %s -c %s' % (
-        sudo_exe, sudo_exe, C.DEFAULT_SUDO_FLAGS,
-        prompt, sudo_user, executable or '$SHELL', pipes.quote('echo %s; %s' % (success_key, cmd)))
-    return ('/bin/sh -c ' + pipes.quote(sudocmd), prompt, success_key)
+    return make_become_cmd(cmd, sudo_user, executable, 'sudo', C.DEFAULT_SUDO_FLAGS, sudo_exe)
 
 
 def make_su_cmd(su_user, executable, cmd):
     """
     Helper function for connection plugins to create direct su commands
     """
-    # TODO: work on this function
-    randbits = ''.join(chr(random.randint(ord('a'), ord('z'))) for x in xrange(32))
-    success_key = 'SUDO-SUCCESS-%s' % randbits
-    sudocmd = '%s %s %s -c "%s -c %s"' % (
-        C.DEFAULT_SU_EXE, C.DEFAULT_SU_FLAGS, su_user, executable or '$SHELL',
-        pipes.quote('echo %s; %s' % (success_key, cmd))
-    )
-    return ('/bin/sh -c ' + pipes.quote(sudocmd), None, success_key)
+    return make_become_cmd(cmd, su_user, executable, 'su', C.DEFAULT_SU_FLAGS, C.DEFAULT_SU_EXE)
 
 # For v2, consider either using kitchen or copying my code from there for
 # to_unicode and to_bytes handling (TEK)
