@@ -33,6 +33,7 @@ REPLACER_ARGS    = "\"<<INCLUDE_ANSIBLE_MODULE_ARGS>>\""
 REPLACER_COMPLEX = "\"<<INCLUDE_ANSIBLE_MODULE_COMPLEX_ARGS>>\""
 REPLACER_WINDOWS = "# POWERSHELL_COMMON"
 REPLACER_VERSION = "\"<<ANSIBLE_VERSION>>\""
+REPLACER_DEFAULT_SSL = "\"<<ANSIBLE_DEFAULT_SSL>>\""
 
 class ModuleReplacer(object):
 
@@ -157,6 +158,7 @@ class ModuleReplacer(object):
             # these strings should be part of the 'basic' snippet which is required to be included
             module_data = module_data.replace(REPLACER_VERSION, repr(__version__))
             module_data = module_data.replace(REPLACER_COMPLEX, encoded_args)
+            module_data = module_data.replace(REPLACER_DEFAULT_SSL, C.SSL_PROTOCOL)
 
             # FIXME: we're not passing around an inject dictionary anymore, so
             #        this needs to be fixed with whatever method we use for vars
