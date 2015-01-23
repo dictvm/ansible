@@ -136,12 +136,13 @@ DEFAULT_ASK_SU_PASS       = get_config(p, DEFAULTS, 'ask_su_pass', 'ANSIBLE_ASK_
 DEFAULT_GATHERING         = get_config(p, DEFAULTS, 'gathering', 'ANSIBLE_GATHERING', 'implicit').lower()
 
 #TODO: get rid of ternary chain mess
-DEFAULT_BECOME_METHOD     = get_config(p, DEFAULTS, 'become_method', 'ANSIBLE_BECOME_METHOD','sudo' if DEFAULT_SUDO else 'su' if DEFAULT_SU else 'sudo' )
+BECOME_METHODS            = ['sudo','su','pbrun','runas','sudo+su']
+DEFAULT_BECOME_METHOD     = get_config(p, DEFAULTS, 'become_method', 'ANSIBLE_BECOME_METHOD','sudo' if DEFAULT_SUDO else 'su' if DEFAULT_SU else 'sudo' ).lower()
 DEFAULT_BECOME            = get_config(p, DEFAULTS, 'become', 'ANSIBLE_BECOME',True if DEFAULT_SUDO or DEFAULT_SU else False, boolean=True)
 DEFAULT_BECOME_EXE        = get_config(p, DEFAULTS, 'become_exe', 'ANSIBLE_BECOME_EXE','sudo' if DEFAULT_SUDO else 'su' if DEFAULT_SU else 'sudo')
 DEFAULT_BECOME_USER       = get_config(p, DEFAULTS, 'become_user', 'ANSIBLE_BECOME_USER',DEFAULT_SUDO_USER if DEFAULT_SUDO else DEFAULT_SU_USER if DEFAULT_SU else 'root')
 DEFAULT_BECOME_FLAGS      = get_config(p, DEFAULTS, 'become_flags', 'ANSIBLE_BECOME_FLAGS',DEFAULT_SUDO_FLAGS if DEFAULT_SUDO else DEFAULT_SU_FLAGS if DEFAULT_SU else '-H')
-DEFAULT_BECOME_ASK_PASS   = get_config(p, DEFAULTS, 'become_ask_pass', 'ANSIBLE_BECOME_ASK_PASS',True if DEFAULT_SUDO_ASK_PASS else False, boolean=True)
+DEFAULT_BECOME_ASK_PASS   = get_config(p, DEFAULTS, 'become_ask_pass', 'ANSIBLE_BECOME_ASK_PASS',True if DEFAULT_ASK_SUDO_PASS else False, boolean=True)
 
 
 DEFAULT_ACTION_PLUGIN_PATH     = get_config(p, DEFAULTS, 'action_plugins',     'ANSIBLE_ACTION_PLUGINS', '/usr/share/ansible_plugins/action_plugins')

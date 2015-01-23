@@ -1022,10 +1022,10 @@ def base_parser(constants=C, usage="", output_opts=False, runas_opts=False,
         # consolidated privlege escalation (become)
         parser.add_option("-b", "--become", default=C.DEFAULT_BECOME, action="store_true", dest='become',
             help="run operations with become (nopasswd implied)")
-        parser.add_option('--become-method', dest='become_method', default=C.DEFAULT_BECOME_METHOD,
-            help="privlege escalation method to use (default=%s)" % C.DEFAULT_BECOME_METHOD)
-        parser.add_option('-B', '--become-user', default=None,
-            help='run operations with as this user (default=%s)' % C.DEFAULT_BECOME_USER)
+        parser.add_option('--become-method', dest='become_method', default=C.DEFAULT_BECOME_METHOD, action="store_true",
+            help="privlege escalation method to use (default=%s), valid choices: [ %s ]" % (C.DEFAULT_BECOME_METHOD, ' | '.join(C.BECOME_METHODS)))
+        parser.add_option('-B', '--become-user', default=None, action="store_true",
+            help='run operations as this user (default=%s)' % C.DEFAULT_BECOME_USER)
         parser.add_option('--ask-become-pass', default=False, dest='ask_become_pass', action='store_true',
             help='ask for privlege escalation password')
 
