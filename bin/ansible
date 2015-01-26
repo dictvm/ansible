@@ -101,20 +101,28 @@ class Cli(object):
 
         pattern = args[0]
 
-        sshpass = None
-        sudopass = None
-        su_pass = None
-        vault_pass = None
+        sshpass = becomepass = vault_pass = become_method = None
 
-        options.ask_pass = options.ask_pass or C.DEFAULT_ASK_PASS
         # Never ask for an SSH password when we run with local connection
         if options.connection == "local":
             options.ask_pass = False
-        options.ask_sudo_pass = options.ask_sudo_pass or C.DEFAULT_ASK_SUDO_PASS
-        options.ask_su_pass = options.ask_su_pass or C.DEFAULT_ASK_SU_PASS
+        else:
+            options.ask_pass = options.ask_pass or C.DEFAULT_ASK_PASS
+        options.become_ask_pass = options.become_ask_pass or options.ask_sudo_pass or options.ask_su_pass or C.DEFAULT_BECOME_ASK_PASS
+
+        if not options.become: # if become is not set
+            if options.sudo:
+                options.become = True
+                become_method = 'sudo'
+            elif options.su
+                options.become = True
+                become_method = 'su'
+        else:
+            become_method = options.become_method
+
         options.ask_vault_pass = options.ask_vault_pass or C.DEFAULT_ASK_VAULT_PASS
 
-        (sshpass, sudopass, su_pass, vault_pass) = utils.ask_passwords(ask_pass=options.ask_pass, ask_sudo_pass=options.ask_sudo_pass, ask_su_pass=options.ask_su_pass, ask_vault_pass=options.ask_vault_pass)
+        (sshpass, becomepass, vault_pass) = utils.ask_passwords(ask_pass=options.ask_pass, ask_become_pass=options.ask_become_pass, ask_vault_pass=options.ask_vault_pass, become+method=otions.become_method)
 
         # read vault_pass from a file
         if not options.ask_vault_pass and options.vault_password_file:
