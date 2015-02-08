@@ -44,6 +44,13 @@ class ActionModule(object):
 
         source   = options.get('src', None)
         dest     = options.get('dest', None)
+        context  = options.get('context', None)
+
+        # add context to inject for overrides, remove from args
+        if context:
+            inject.update(context)
+            #TODO: remove context from module args so there is no need for file n copy to accept it
+
 
         if (source is None and 'first_available_file' not in inject) or dest is None:
             result = dict(failed=True, msg="src and dest are required")
@@ -69,7 +76,7 @@ class ActionModule(object):
                 return ReturnData(conn=conn, comm_ok=False, result=result)
         else:
             source = template.template(self.runner.basedir, source, inject)
-                
+
             if '_original_file' in inject:
                 source = utils.path_dwim_relative(inject['_original_file'], 'templates', source, self.runner.basedir)
             else:
@@ -115,7 +122,7 @@ class ActionModule(object):
                         dest_contents = base64.b64decode(dest_contents)
                     else:
                         raise Exception("unknown encoding, failed: %s" % dest_result.result)
- 
+
             xfered = self.runner._transfer_str(conn, tmp, 'source', resultant)
 
             # fix file permissions when the copy is done as a different user
