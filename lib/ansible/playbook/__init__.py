@@ -59,15 +59,12 @@ class PlayBook(object):
         timeout          = C.DEFAULT_TIMEOUT,
         remote_user      = C.DEFAULT_REMOTE_USER,
         remote_pass      = C.DEFAULT_REMOTE_PASS,
-        sudo_pass        = C.DEFAULT_SUDO_PASS,
         remote_port      = None,
         transport        = C.DEFAULT_TRANSPORT,
         private_key_file = C.DEFAULT_PRIVATE_KEY_FILE,
         callbacks        = None,
         runner_callbacks = None,
         stats            = None,
-        sudo             = False,
-        sudo_user        = C.DEFAULT_SUDO_USER,
         extra_vars       = None,
         only_tags        = None,
         skip_tags        = None,
@@ -76,11 +73,18 @@ class PlayBook(object):
         check            = False,
         diff             = False,
         any_errors_fatal = False,
-        su               = False,
-        su_user          = False,
-        su_pass          = False,
         vault_password   = False,
         force_handlers   = False,
+        # privelege escalation
+        become           = False,
+        become_method    = C.DEFAULT_BECOME_METHOD,
+        become_user      = C.DEFAULT_BECOME_USER,
+        become_pass      = None,
+        # eliminate when become is working
+        sudo             = False,
+        sudo_user        = C.DEFAULT_SUDO_USER,
+        su               = False,
+        su_user          = False,
     ):
 
         """
@@ -91,17 +95,17 @@ class PlayBook(object):
         timeout:          connection timeout
         remote_user:      run as this user if not specified in a particular play
         remote_pass:      use this remote password (for all plays) vs using SSH keys
-        sudo_pass:        if sudo==True, and a password is required, this is the sudo password
         remote_port:      default remote port to use if not specified with the host or play
         transport:        how to connect to hosts that don't specify a transport (local, paramiko, etc)
         callbacks         output callbacks for the playbook
         runner_callbacks: more callbacks, this time for the runner API
         stats:            holds aggregrate data about events occurring to each host
-        sudo:             if not specified per play, requests all plays use sudo mode
         inventory:        can be specified instead of host_list to use a pre-existing inventory object
         check:            don't change anything, just try to detect some potential changes
         any_errors_fatal: terminate the entire execution immediately when one of the hosts has failed
         force_handlers:   continue to notify and run handlers even if a task fails
+        sudo:             if not specified per play, requests all plays use sudo mode
+        sudo_pass:        if sudo==True, and a password is required, this is the sudo password
         """
 
         self.SETUP_CACHE = SETUP_CACHE
@@ -138,20 +142,26 @@ class PlayBook(object):
         self.callbacks        = callbacks
         self.runner_callbacks = runner_callbacks
         self.stats            = stats
-        self.sudo             = sudo
-        self.sudo_pass        = sudo_pass
-        self.sudo_user        = sudo_user
         self.extra_vars       = extra_vars
         self.global_vars      = {}
         self.private_key_file = private_key_file
         self.only_tags        = only_tags
         self.skip_tags        = skip_tags
         self.any_errors_fatal = any_errors_fatal
-        self.su               = su
-        self.su_user          = su_user
-        self.su_pass          = su_pass
         self.vault_password   = vault_password
         self.force_handlers   = force_handlers
+
+        self.become           = become
+        self.become_method    = become_method
+        self.become_user      = become_user
+        self.become_pass      = become_pass
+        # TODO: remove once become works
+        self.sudo             = None
+        self.sudo_pass        = None
+        self.sudo_user        = None
+        self.su               = None
+        self.su_user          = None
+        self.su_pass          = None
 
         self.callbacks.playbook = self
         self.runner_callbacks.playbook = self

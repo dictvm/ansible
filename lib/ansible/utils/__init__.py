@@ -1024,9 +1024,9 @@ def base_parser(constants=C, usage="", output_opts=False, runas_opts=False,
             help="run operations with become (nopasswd implied)")
         parser.add_option('--become-method', dest='become_method', default=constants.DEFAULT_BECOME_METHOD, action="store_true",
             help="privlege escalation method to use (default=%s), valid choices: [ %s ]" % (constants.DEFAULT_BECOME_METHOD, ' | '.join(constants.BECOME_METHODS)))
-        parser.add_option('-B', '--become-user', default=None, action="store_true",
+        parser.add_option('-B', '--become-user', default=None, action="store_true", dest='become_user',
             help='run operations as this user (default=%s)' % constants.DEFAULT_BECOME_USER)
-        parser.add_option('--ask-become-pass', default=False, dest='ask_become_pass', action='store_true',
+        parser.add_option('--ask-become-pass', default=False, dest='become_ask_pass', action='store_true',
             help='ask for privlege escalation password')
 
 
@@ -1084,7 +1084,7 @@ def ask_vault_passwords(ask_vault_pass=False, ask_new_vault_pass=False, confirm_
 
     return vault_pass, new_vault_pass
 
-def ask_passwords(ask_pass=False, ask_become_su_pass=False, ask_vault_pass=False, become_method=None):
+def ask_passwords(ask_pass=False, become_ask_pass=False, ask_vault_pass=False, become_method=None):
     sshpass = None
     becomepass = None
     vault_pass = None
@@ -1094,7 +1094,7 @@ def ask_passwords(ask_pass=False, ask_become_su_pass=False, ask_vault_pass=False
         sshpass = getpass.getpass(prompt="SSH password: ")
         sudo_prompt = "sudo password [defaults to SSH password]: "
 
-    if ask_become_pass:
+    if become_ask_pass:
         becomepass = getpass.getpass(prompt=become_prompt)
         if ask_pass and becomepass == '':
             becomepass = sshpass
@@ -1102,7 +1102,7 @@ def ask_passwords(ask_pass=False, ask_become_su_pass=False, ask_vault_pass=False
     if ask_vault_pass:
         vault_pass = getpass.getpass(prompt="Vault password: ")
 
-    return (sshpass, sudopass, su_pass, vault_pass)
+    return (sshpass, becomepass, vault_pass)
 
 def do_encrypt(result, encrypt, salt_size=None, salt=None):
     if PASSLIB_AVAILABLE:

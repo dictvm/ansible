@@ -24,26 +24,24 @@ import sys
 
 class Task(object):
 
-    __slots__ = [
-        'name', 'meta', 'action', 'when', 'async_seconds', 'async_poll_interval',
-        'notify', 'module_name', 'module_args', 'module_vars', 'play_vars', 'play_file_vars', 'role_vars', 'role_params', 'default_vars',
-        'play', 'notified_by', 'tags', 'register', 'role_name',
-        'delegate_to', 'first_available_file', 'ignore_errors',
-        'local_action', 'transport', 'sudo', 'remote_user', 'sudo_user', 'sudo_pass',
-        'items_lookup_plugin', 'items_lookup_terms', 'environment', 'args',
-        'any_errors_fatal', 'changed_when', 'failed_when', 'always_run', 'delay', 'retries', 'until',
-        'su', 'su_user', 'su_pass', 'no_log', 'run_once',
+    _t_common = [
+        'action', 'always_run', 'any_errors_fatal', 'args', 'become', 'become_method',
+        'become_user', 'changed_when', 'delay', 'delegate_to', 'environment', 'failed_when',
+        'first_available_file', 'ignore_errors', 'local_action', 'meta', 'name', 'no_log',
+        'notify', 'register', 'remote_user', 'retries', 'run_once', 'su', 'su_pass', 'su_user',
+        'sudo', 'sudo_pass', 'sudo_user', 'tags', 'transport', 'until', 'when',
     ]
+
+    __slots__ = [
+        'async_poll_interval', 'async_seconds', 'default_vars', 'first_available_file',
+        'items_lookup_plugin', 'items_lookup_terms', 'module_args', 'module_name', 'module_vars',
+        'notified_by', 'play', 'play_file_vars', 'play_vars', 'role_name', 'role_params', 'role_vars',
+    ] + _t_common
 
     # to prevent typos and such
     VALID_KEYS = [
-         'name', 'meta', 'action', 'when', 'async', 'poll', 'notify',
-         'first_available_file', 'include', 'tags', 'register', 'ignore_errors',
-         'delegate_to', 'local_action', 'transport', 'remote_user', 'sudo', 'sudo_user',
-         'sudo_pass', 'when', 'connection', 'environment', 'args',
-         'any_errors_fatal', 'changed_when', 'failed_when', 'always_run', 'delay', 'retries', 'until',
-         'su', 'su_user', 'su_pass', 'no_log', 'run_once',
-    ]
+        'async', 'connection', 'include', 'poll',
+    ] + _t_common
 
     def __init__(self, play, ds, module_vars=None, play_vars=None, play_file_vars=None, role_vars=None, role_params=None, default_vars=None, additional_conditions=None, role_name=None):
         ''' constructor loads from a task or handler datastructure '''

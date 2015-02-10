@@ -32,23 +32,24 @@ import uuid
 
 class Play(object):
 
-    __slots__ = [
-       'hosts', 'name', 'vars', 'vars_file_vars', 'role_vars', 'default_vars', 'vars_prompt', 'vars_files',
-       'handlers', 'remote_user', 'remote_port', 'included_roles', 'accelerate',
-       'accelerate_port', 'accelerate_ipv6', 'sudo', 'sudo_user', 'transport', 'playbook',
-       'tags', 'gather_facts', 'serial', '_ds', '_handlers', '_tasks',
-       'basedir', 'any_errors_fatal', 'roles', 'max_fail_pct', '_play_hosts', 'su', 'su_user',
-       'vault_password', 'no_log', 'environment',
+    _pb_common = [
+        'accelerate', 'accelerate_ipv6', 'accelerate_port', 'any_errors_fatal', 'become',
+        'become_method', 'become_user', 'environment', 'gather_facts', 'handlers', 'hosts',
+        'name', 'no_log', 'remote_user', 'roles', 'serial', 'su', 'su_user', 'sudo',
+        'sudo_user', 'tags', 'vars', 'vars_files', 'vars_prompt', 'vault_password',
+    ]
+
+    __slots__ = _pb_common + [
+        '_ds', '_handlers', '_play_hosts', '_tasks', 'any_errors_fatal', 'basedir',
+        'default_vars', 'included_roles', 'max_fail_pct', 'playbook', 'remote_port',
+        'role_vars', 'transport', 'vars_file_vars',
     ]
 
     # to catch typos and so forth -- these are userland names
     # and don't line up 1:1 with how they are stored
-    VALID_KEYS = [
-       'hosts', 'name', 'vars', 'vars_prompt', 'vars_files',
-       'tasks', 'handlers', 'remote_user', 'user', 'port', 'include', 'accelerate', 'accelerate_port', 'accelerate_ipv6',
-       'sudo', 'sudo_user', 'connection', 'tags', 'gather_facts', 'serial',
-       'any_errors_fatal', 'roles', 'role_names', 'pre_tasks', 'post_tasks', 'max_fail_percentage',
-       'su', 'su_user', 'vault_password', 'no_log', 'environment',
+    VALID_KEYS = _pb_common + [
+        'connection', 'include', 'max_fail_percentage', 'port', 'post_tasks',
+        'pre_tasks', 'role_names', 'tasks', 'user',
     ]
 
     # *************************************************
@@ -58,7 +59,7 @@ class Play(object):
 
         for x in ds.keys():
             if not x in Play.VALID_KEYS:
-                raise errors.AnsibleError("%s is not a legal parameter at this level in an Ansible Playbook" % x)
+                raise errors.AnsibleError("%s is not a legal parameter of an Ansible Play" % x)
 
         # allow all playbook keys to be set by --extra-vars
         self.vars             = ds.get('vars', {})
@@ -140,8 +141,6 @@ class Play(object):
         self._handlers        = ds.get('handlers', [])
         self.remote_user      = ds.get('remote_user', ds.get('user', self.playbook.remote_user))
         self.remote_port      = ds.get('port', self.playbook.remote_port)
-        self.sudo             = ds.get('sudo', self.playbook.sudo)
-        self.sudo_user        = ds.get('sudo_user', self.playbook.sudo_user)
         self.transport        = ds.get('connection', self.playbook.transport)
         self.remote_port      = self.remote_port
         self.any_errors_fatal = utils.boolean(ds.get('any_errors_fatal', 'false'))
@@ -149,9 +148,16 @@ class Play(object):
         self.accelerate_port  = ds.get('accelerate_port', None)
         self.accelerate_ipv6  = ds.get('accelerate_ipv6', False)
         self.max_fail_pct     = int(ds.get('max_fail_percentage', 100))
+        self.no_log           = utils.boolean(ds.get('no_log', 'false'))
+
+        self.become           = ds.get('become', self.playbook.become)
+        self.become_user      = ds.get('become_user', self.playbook.become_user)
+
+        # TODO: make conditional on become?
+        self.sudo             = ds.get('sudo', self.playbook.sudo)
+        self.sudo_user        = ds.get('sudo_user', self.playbook.sudo_user)
         self.su               = ds.get('su', self.playbook.su)
         self.su_user          = ds.get('su_user', self.playbook.su_user)
-        self.no_log           = utils.boolean(ds.get('no_log', 'false'))
 
         # gather_facts is not a simple boolean, as None means  that a 'smart'
         # fact gathering mode will be used, so we need to be careful here as
