@@ -123,7 +123,6 @@ class Runner(object):
         remote_pass=C.DEFAULT_REMOTE_PASS,  # ex: 'password123' or None if using key
         remote_port=None,                   # if SSH on different ports
         private_key_file=C.DEFAULT_PRIVATE_KEY_FILE, # if not using keys/passwords
-        sudo_pass=C.DEFAULT_SUDO_PASS,      # ex: 'password123' or None
         background=0,                       # async poll every X seconds, else 0 for non-async
         basedir=None,                       # directory of playbook, if applicable
         setup_cache=None,                   # used to share fact data w/ other tasks
@@ -131,8 +130,6 @@ class Runner(object):
         transport=C.DEFAULT_TRANSPORT,      # 'ssh', 'paramiko', 'local'
         conditional='True',                 # run only if this fact expression evals to true
         callbacks=None,                     # used for output
-        sudo=False,                         # whether to run sudo or not
-        sudo_user=C.DEFAULT_SUDO_USER,      # ex: 'root'
         module_vars=None,                   # a playbooks internals thing
         play_vars=None,                     #
         play_file_vars=None,                #
@@ -151,14 +148,21 @@ class Runner(object):
         accelerate=False,                   # use accelerated connection
         accelerate_ipv6=False,              # accelerated connection w/ IPv6
         accelerate_port=None,               # port to use with accelerated connection
-        su=False,                           # Are we running our command via su?
-        su_user=None,                       # User to su to when running command, ex: 'root'
-        su_pass=C.DEFAULT_SU_PASS,
         vault_pass=None,
         run_hosts=None,                     # an optional list of pre-calculated hosts to run on
         no_log=False,                       # option to enable/disable logging for a given task
         run_once=False,                     # option to enable/disable host bypass loop for a given task
-        sudo_exe=C.DEFAULT_SUDO_EXE,        # ex: /usr/local/bin/sudo
+        become=False,                         # whether to run privelege escalation or not
+        become_method=C.DEFAULT_BECOME_METHOD,
+        become_user=C.DEFAULT_BECOME_USER,      # ex: 'root'
+        become_pass=C.DEFAULT_BECOME_PASS,      # ex: 'password123' or None
+        become_exe=C.DEFAULT_BECOME_EXE,        # ex: /usr/local/bin/sudo
+        sudo=False,                         # whether to run privelege escalation or not
+        sudo_user=None,
+        sudo_pass=None,
+        su=False,                           # whether to run privelege escalation or not
+        su_user=None,
+        su_pass=None,
         ):
 
         # used to lock multiprocess inputs and outputs at various levels
@@ -201,10 +205,11 @@ class Runner(object):
         self.remote_port      = remote_port
         self.private_key_file = private_key_file
         self.background       = background
-        self.sudo             = sudo
-        self.sudo_user_var    = sudo_user
-        self.sudo_user        = None
-        self.sudo_pass        = sudo_pass
+        self.become           = become
+        self.become_method    = become_method
+        self.become_user_var  = become_user
+        self.become_user      = None
+        self.become_pass      = become_pass
         self.is_playbook      = is_playbook
         self.environment      = environment
         self.complex_args     = complex_args
@@ -221,7 +226,7 @@ class Runner(object):
         self.vault_pass       = vault_pass
         self.no_log           = no_log
         self.run_once         = run_once
-        self.sudo_exe         = sudo_exe
+        self.become_exe       = become_exe
 
         if self.transport == 'smart':
             # If the transport is 'smart', check to see if certain conditions
@@ -369,7 +374,7 @@ class Runner(object):
         delegate['pass'] = this_info.get('ansible_ssh_pass', password)
         delegate['private_key_file'] = this_info.get('ansible_ssh_private_key_file', self.private_key_file)
         delegate['transport'] = this_info.get('ansible_connection', self.transport)
-        delegate['sudo_pass'] = this_info.get('ansible_sudo_pass', self.sudo_pass)
+        delegate['become_pass'] = this_info.get('ansible_become_pass', this_info.get('ansible_ssh_pass', self.become_pass))
 
         # Last chance to get private_key_file from global variables.
         # this is useful if delegated host is not defined in the inventory
@@ -486,8 +491,8 @@ class Runner(object):
 
         environment_string = self._compute_environment_string(conn, inject)
 
-        if "tmp" in tmp and ((self.sudo and self.sudo_user != 'root') or (self.su and self.su_user != 'root')):
-            # deal with possible umask issues once sudo'ed to other user
+        if "tmp" in tmp and (self.become and self.become_user != 'root'):
+            # deal with possible umask issues once you become another user
             self._remote_chmod(conn, 'a+r', remote_module_path, tmp)
 
         cmd = ""
@@ -514,8 +519,8 @@ class Runner(object):
             else:
                 argsfile = self._transfer_str(conn, tmp, 'arguments', args)
 
-            if (self.sudo and self.sudo_user != 'root') or (self.su and self.su_user != 'root'):
-                # deal with possible umask issues once sudo'ed to other user
+            if self.become and self.become_user != 'root':
+                # deal with possible umask issues once become another user
                 self._remote_chmod(conn, 'a+r', argsfile, tmp)
 
             if async_jid is None:
@@ -536,7 +541,7 @@ class Runner(object):
 
         rm_tmp = None
         if "tmp" in tmp and not C.DEFAULT_KEEP_REMOTE_FILES and not persist_files and delete_remote_tmp:
-            if not self.sudo or self.su or self.sudo_user == 'root' or self.su_user == 'root':
+            if not self.become or self.become_user == 'root':
                 # not sudoing or sudoing to root, so can cleanup files in the same step
                 rm_tmp = tmp
 
@@ -546,7 +551,7 @@ class Runner(object):
         sudoable = True
         if module_name == "accelerate":
             # always run the accelerate module as the user
-            # specified in the play, not the sudo_user
+            # specified in the play, not the become_user
             sudoable = False
 
         if self.su:
@@ -555,8 +560,8 @@ class Runner(object):
             res = self._low_level_exec_command(conn, cmd, tmp, sudoable=sudoable, in_data=in_data)
 
         if "tmp" in tmp and not C.DEFAULT_KEEP_REMOTE_FILES and not persist_files and delete_remote_tmp:
-            if (self.sudo and self.sudo_user != 'root') or (self.su and self.su_user != 'root'):
-            # not sudoing to root, so maybe can't delete files as that other user
+            if self.become and self.become_user != 'root':
+            # not becoming root, so maybe can't delete files as that other user
             # have to clean up temp files as original user in a second step
                 cmd2 = conn.shell.remove(tmp, recurse=True)
                 self._low_level_exec_command(conn, cmd2, tmp, sudoable=False)
@@ -848,9 +853,9 @@ class Runner(object):
     def _executor_internal_inner(self, host, module_name, module_args, inject, port, is_chained=False, complex_args=None):
         ''' decides how to invoke a module '''
 
-        # late processing of parameterized sudo_user (with_items,..)
-        if self.sudo_user_var is not None:
-            self.sudo_user = template.template(self.basedir, self.sudo_user_var, inject)
+        # late processing of parameterized become_user (with_items,..)
+        if self.become_user_var is not None:
+            self.become_user = template.template(self.basedir, self.become_user_var, inject)
         if self.su_user_var is not None:
             self.su_user = template.template(self.basedir, self.su_user_var, inject)
 
@@ -888,18 +893,16 @@ class Runner(object):
         actual_transport = inject.get('ansible_connection', self.transport)
         actual_private_key_file = inject.get('ansible_ssh_private_key_file', self.private_key_file)
         actual_private_key_file = template.template(self.basedir, actual_private_key_file, inject, fail_on_undefined=True)
-        self.sudo = utils.boolean(inject.get('ansible_sudo', self.sudo))
-        self.sudo_user = inject.get('ansible_sudo_user', self.sudo_user)
-        self.sudo_pass = inject.get('ansible_sudo_pass', self.sudo_pass)
-        self.su = inject.get('ansible_su', self.su)
-        self.su_pass = inject.get('ansible_su_pass', self.su_pass)
-        self.sudo_exe = inject.get('ansible_sudo_exe', self.sudo_exe)
+        self.become = utils.boolean(inject.get('ansible_become', inject.get('ansible_sudo', inject.get('ansible_su', self.become))))
+        self.become_user = inject.get('ansible_become_user', inject.get('ansible_sudo_user', inject.get('ansible_su_user',self.become_user)))
+        self.become_pass = inject.get('ansible_become_pass', inject.get('ansible_sudo_pass', inject.get('ansible_su_pass', self.become_pass)))
+        self.become_exe = inject.get('ansible_become_exe', inject.get('ansible_sudo_exe', self.become_exe))
 
-        # select default root user in case self.sudo requested
+        # select default root user in case self.become requested
         # but no user specified; happens e.g. in host vars when
-        # just ansible_sudo=True is specified
-        if self.sudo and self.sudo_user is None:
-            self.sudo_user = 'root'
+        # just ansible_become=True is specified
+        if self.become and self.become_user is None:
+            self.become_user = 'root'
 
         if actual_private_key_file is not None:
             actual_private_key_file = os.path.expanduser(actual_private_key_file)
@@ -932,13 +935,13 @@ class Runner(object):
             actual_user = delegate['user']
             actual_pass = delegate['pass']
             actual_private_key_file = delegate['private_key_file']
-            self.sudo_pass = delegate['sudo_pass']
+            self.become_pass = delegate.get('become_pass',delegate.get('sudo_pass'))
             inject = delegate['inject']
 
         # user/pass may still contain variables at this stage
         actual_user = template.template(self.basedir, actual_user, inject)
         actual_pass = template.template(self.basedir, actual_pass, inject)
-        self.sudo_pass = template.template(self.basedir, self.sudo_pass, inject)
+        self.become_pass = template.template(self.basedir, self.become_pass, inject)
 
         # make actual_user available as __magic__ ansible_ssh_user variable
         inject['ansible_ssh_user'] = actual_user
@@ -1141,62 +1144,55 @@ class Runner(object):
     # *****************************************************
 
     def _low_level_exec_command(self, conn, cmd, tmp, sudoable=False,
-                                executable=None, su=False, in_data=None):
+                                executable=None, become=False, in_data=None):
         ''' execute a command string over SSH, return the output '''
 
-        if not cmd:
-            # this can happen with powershell modules when there is no analog to a Windows command (like chmod)
-            return dict(stdout='', stderr='')
+        # this can be skipped with powershell modules when there is no analog to a Windows command (like chmod)
+        if cmd:
 
-        if executable is None:
-            executable = C.DEFAULT_EXECUTABLE
+            if executable is None:
+                executable = C.DEFAULT_EXECUTABLE
 
-        sudo_user = self.sudo_user
-        su_user = self.su_user
+            become_user = self.become_user
 
-        # compare connection user to (su|sudo)_user and disable if the same
-        # assume connection type is local if no user attribute
-        this_user = getattr(conn, 'user', getpass.getuser())
-        if (not su and this_user == sudo_user) or (su and this_user == su_user):
-            sudoable = False
-            su = False
+            # compare connection user to (su|sudo)_user and disable if the same
+            # assume connection type is local if no user attribute
+            this_user = getattr(conn, 'user', getpass.getuser())
+            if (not become and this_user == become_user):
+                sudoable = False
+                become = False
 
-        if su:
             rc, stdin, stdout, stderr = conn.exec_command(cmd,
                                                           tmp,
-                                                          su=su,
-                                                          su_user=su_user,
-                                                          executable=executable,
-                                                          in_data=in_data)
-        else:
-            rc, stdin, stdout, stderr = conn.exec_command(cmd,
-                                                          tmp,
-                                                          sudo_user,
+                                                          become_user=become_user,
                                                           sudoable=sudoable,
                                                           executable=executable,
                                                           in_data=in_data)
 
-        if type(stdout) not in [ str, unicode ]:
-            out = ''.join(stdout.readlines())
-        else:
-            out = stdout
+            if type(stdout) not in [ str, unicode ]:
+                out = ''.join(stdout.readlines())
+            else:
+                out = stdout
 
-        if type(stderr) not in [ str, unicode ]:
-            err = ''.join(stderr.readlines())
-        else:
-            err = stderr
+            if type(stderr) not in [ str, unicode ]:
+                err = ''.join(stderr.readlines())
+            else:
+                err = stderr
 
-        if rc is not None:
-            return dict(rc=rc, stdout=out, stderr=err)
-        else:
-            return dict(stdout=out, stderr=err)
+            if rc is not None:
+                return dict(rc=rc, stdout=out, stderr=err)
+            else:
+                return dict(stdout=out, stderr=err)
+
+        return dict(rc=None, stdout='', stderr='')
+
 
     # *****************************************************
 
-    def _remote_chmod(self, conn, mode, path, tmp, sudoable=False, su=False):
+    def _remote_chmod(self, conn, mode, path, tmp, sudoable=False, become=False):
         ''' issue a remote chmod command '''
         cmd = conn.shell.chmod(mode, path)
-        return self._low_level_exec_command(conn, cmd, tmp, sudoable=sudoable, su=su)
+        return self._low_level_exec_command(conn, cmd, tmp, sudoable=sudoable, become=become)
 
     # *****************************************************
 
@@ -1208,13 +1204,11 @@ class Runner(object):
         split_path = path.split(os.path.sep, 1)
         expand_path = split_path[0]
         if expand_path == '~':
-            if self.sudo and self.sudo_user:
-                expand_path = '~%s' % self.sudo_user
-            elif self.su and self.su_user:
-                expand_path = '~%s' % self.su_user
+            if self.become and self.become_user:
+                expand_path = '~%s' % self.become_user
 
         cmd = conn.shell.expand_user(expand_path)
-        data = self._low_level_exec_command(conn, cmd, tmp, sudoable=False, su=False)
+        data = self._low_level_exec_command(conn, cmd, tmp, sudoable=False, become=False)
         initial_fragment = utils.last_non_blank_line(data['stdout'])
 
         if not initial_fragment:
@@ -1278,11 +1272,11 @@ class Runner(object):
         ''' make and return a temporary path on a remote box '''
         basefile = 'ansible-tmp-%s-%s' % (time.time(), random.randint(0, 2**48))
         use_system_tmp = False
-        if (self.sudo and self.sudo_user != 'root') or (self.su and self.su_user != 'root'):
+        if self.become and self.become_user != 'root':
             use_system_tmp = True
 
         tmp_mode = None
-        if self.remote_user != 'root' or ((self.sudo and self.sudo_user != 'root') or (self.su and self.su_user != 'root')):
+        if self.remote_user != 'root' or (self.become and self.become_user != 'root'):
             tmp_mode = 'a+rx'
 
         cmd = conn.shell.mkdtemp(basefile, use_system_tmp, tmp_mode)

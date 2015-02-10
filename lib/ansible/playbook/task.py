@@ -25,7 +25,7 @@ import sys
 class Task(object):
 
     _t_common = [
-        'action', 'always_run', 'any_errors_fatal', 'args', 'become', 'become_method',
+        'action', 'always_run', 'any_errors_fatal', 'args', 'become', 'become_method', 'become_pass',
         'become_user', 'changed_when', 'delay', 'delegate_to', 'environment', 'failed_when',
         'first_available_file', 'ignore_errors', 'local_action', 'meta', 'name', 'no_log',
         'notify', 'register', 'remote_user', 'retries', 'run_once', 'su', 'su_pass', 'su_user',
@@ -129,8 +129,6 @@ class Task(object):
         self.name         = ds.get('name', None)
         self.tags         = [ 'all' ]
         self.register     = ds.get('register', None)
-        self.sudo         = utils.boolean(ds.get('sudo', play.sudo))
-        self.su           = utils.boolean(ds.get('su', play.su))
         self.environment  = ds.get('environment', play.environment)
         self.role_name    = role_name
         self.no_log       = utils.boolean(ds.get('no_log', "false")) or self.play.no_log
@@ -158,6 +156,12 @@ class Task(object):
         else:
             self.remote_user      = ds.get('remote_user', play.playbook.remote_user)
 
+        self.become        = utils.boolean(ds.get('become', play.become))
+        self.become_method = utils.boolean(ds.get('become_method', play.become_method))
+        self.become_user   = None
+        self.become_pass   = None
+        self.sudo         = utils.boolean(ds.get('sudo', play.sudo))
+        self.su           = utils.boolean(ds.get('su', play.su))
         self.sudo_user    = None
         self.sudo_pass    = None
         self.su_user      = None

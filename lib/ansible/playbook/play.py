@@ -151,6 +151,7 @@ class Play(object):
         self.no_log           = utils.boolean(ds.get('no_log', 'false'))
 
         self.become           = ds.get('become', self.playbook.become)
+        self.become_method    = ds.get('become_method', self.playbook.become_method)
         self.become_user      = ds.get('become_user', self.playbook.become_user)
 
         # TODO: make conditional on become?
