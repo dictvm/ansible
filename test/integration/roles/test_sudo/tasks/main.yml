@@ -4,6 +4,16 @@
   user:
     name: "{{ sudo_test_user }}"
 
+- name: test becoming user
+  shell: whoami
+  sudo: True
+  sudo_user: "{{ sudo_test_user }}"
+  register: results
+
+- assert:
+    that:
+      - "results.stdout == '{{ sudo_test_user }}'"
+
 - name: tilde expansion honors sudo in file
   sudo: True
   sudo_user: "{{ sudo_test_user }}"

@@ -4,6 +4,16 @@
   user:
     name: "{{ su_test_user }}"
 
+- name: test becoming user
+  shell: whoami
+  su: True
+  su_user: "{{ su_test_user }}"
+  register: results
+
+- assert:
+    that:
+      - "results.stdout == '{{ su_test_user }}'"
+
 - name: tilde expansion honors su in file
   su: True
   su_user: "{{ su_test_user }}"

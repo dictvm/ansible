@@ -4,6 +4,16 @@
   user:
     name: "{{ become_test_user }}"
 
+- name: test becoming user
+  shell: whoami
+  become: True
+  become_user: "{{ become_test_user }}"
+  register: results
+
+- assert:
+    that:
+      - "results.stdout == '{{ become_test_user }}'"
+
 - name: tilde expansion honors become in file
   become: True
   become_user: "{{ become_test_user }}"
