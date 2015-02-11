@@ -1578,5 +1578,18 @@ def censor_unlogged_data(data):
     new_data['censored'] = 'results hidden due to no_log parameter'
     return new_data
 
+def check_mutually_exclusive_privelege(options, parser):
+    # privlege escalation command line arguments need to be mutually exclusive
+    if (options.su or options.su_user or options.ask_su_pass) and \
+                (options.sudo or options.sudo_user or options.ask_sudo_pass) or \
+        (options.su or options.su_user or options.ask_su_pass) and \
+                (options.become or options.become_user or options.become_ask_pass) or \
+        (options.sudo or options.sudo_user or options.ask_sudo_pass) and \
+                (options.become or options.become_user or options.become_ask_pass):
 
-    
+            parser.error("Sudo arguments ('--sudo', '--sudo-user', and '--ask-sudo-pass') "
+                         "and su arguments ('-su', '--su-user', and '--ask-su-pass') "
+                         "and become arguments ('--become', '--become-user', and '--ask-become-pass')"
+                         " are mutually exclusive")
+
+

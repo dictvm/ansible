@@ -554,8 +554,8 @@ class Runner(object):
             # specified in the play, not the become_user
             sudoable = False
 
-        if self.su:
-            res = self._low_level_exec_command(conn, cmd, tmp, su=True, in_data=in_data)
+        if self.become:
+            res = self._low_level_exec_command(conn, cmd, tmp, become=True, in_data=in_data)
         else:
             res = self._low_level_exec_command(conn, cmd, tmp, sudoable=sudoable, in_data=in_data)
 
